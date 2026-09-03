@@ -11,9 +11,9 @@ import {
   streamReply,
   demoTextFrom,
 } from "../lib/dolphin.js";
-import { InferenceClient, InferenceClientProviderApiError } from "@huggingface/inference";
+import OpenAI, { APIError } from "openai";
 import { createApp } from "../server.js";
-import { startMockRouter, makeRedirectFetch, MOCK_KEY } from "./mock-hf-server.mjs";
+import { startMockRouter, MOCK_KEY } from "./mock-hf-server.mjs";
 
 const OK_BODY = {
   messages: [{ role: "user", content: "Bonjour" }],
@@ -39,9 +39,13 @@ test("config : valeurs par défaut issues de la fiche (temp 0.15, provider feath
   const cfg = getConfig({});
   assert.equal(cfg.provider, "featherless-ai");
   assert.equal(cfg.model, "dphn/Dolphin-Mistral-24B-Venice-Edition");
+  // Suffixe provider à la OpenAI (structure de la fiche)
+  assert.equal(cfg.modelId, "dphn/Dolphin-Mistral-24B-Venice-Edition:featherless-ai");
+  assert.equal(cfg.baseURL, "https://router.huggingface.co/v1");
   assert.equal(cfg.apiKey, "");
   assert.equal(cfg.demoMode, false);
   assert.equal(getConfig({ DEMO_MODE: "1" }).demoMode, true);
+  assert.equal(getConfig({ HF_TOKEN: "hf_x" }).apiKey, "hf_x");
 });
 
 // ---------------------------------------------------------------- validation
@@ -113,15 +117,18 @@ test("system prompt : défaut ajouté, explicite prioritaire, conversation respe
 
 // ---------------------------------------------------------------- erreurs
 test("mapProviderError : 402 provider → statut + message crédits", () => {
-  const err = new InferenceClientProviderApiError(
+  // APIError réelle du SDK OpenAI (forme renvoyée quand HF/Featherless répond 402)
+  const err = new APIError(
+    402,
+    { message: "You have exceeded your monthly included credits." },
     "Payment required",
-    { url: "https://router.huggingface.co/featherless-ai/v1/chat/completions", method: "POST" },
-    { status: 402, body: { error: { message: "You have exceeded your monthly included credits." } } }
+    new Headers()
   );
   const mapped = mapProviderError(err);
   assert.ok(mapped instanceof DolphinError);
   assert.equal(mapped.status, 402);
   assert.match(mapped.message, /[Cc]rédits/);
+  assert.match(mapped.detail ?? "", /credits/);
 });
 
 test("mapProviderError : réseau → 503, timeout → 504, inconnu → 502", () => {
@@ -133,33 +140,44 @@ test("mapProviderError : réseau → 503, timeout → 504, inconnu → 502", () 
 });
 
 // ---------------------------------------------------------------- SDK
-test("SDK : InferenceClient expose chatCompletion et chatCompletionStream", () => {
-  const client = new InferenceClient("cle-factice");
-  assert.equal(typeof client.chatCompletion, "function");
-  assert.equal(typeof client.chatCompletionStream, "function");
+test("SDK OpenAI : client configuré comme la fiche expose chat.completions.create", () => {
+  const client = new OpenAI({
+    baseURL: "https://router.huggingface.co/v1",
+    apiKey: "hf_cle_factice",
+    maxRetries: 0,
+  });
+  assert.equal(typeof client.chat.completions.create, "function");
 });
 
 test("dolphin : generateReply avec client injecté renvoie le texte", async () => {
   const client = {
-    chatCompletion: async () => ({
-      model: "m",
-      choices: [{ message: { content: "Réponse factice" } }],
-      usage: { total_tokens: 1 },
-    }),
+    chat: {
+      completions: {
+        create: async () => ({
+          model: "m",
+          choices: [{ message: { content: "Réponse factice" } }],
+          usage: { total_tokens: 1 },
+        }),
+      },
+    },
   };
-  const out = await generateReply({ client, messages: OK_BODY.messages, model: "m", provider: "p" });
+  const out = await generateReply({ client, messages: OK_BODY.messages, modelId: "m" });
   assert.equal(out.reply, "Réponse factice");
   assert.equal(out.usage.total_tokens, 1);
 });
 
 test("dolphin : generateReply remappe les erreurs du client", async () => {
   const client = {
-    chatCompletion: async () => {
-      throw new TypeError("fetch failed");
+    chat: {
+      completions: {
+        create: async () => {
+          throw new TypeError("fetch failed");
+        },
+      },
     },
   };
   await assert.rejects(
-    () => generateReply({ client, messages: OK_BODY.messages, model: "m", provider: "p" }),
+    () => generateReply({ client, messages: OK_BODY.messages, modelId: "m" }),
     (e) => e instanceof DolphinError && e.status === 503
   );
 });
@@ -170,47 +188,55 @@ test("dolphin : streamReply concatène les deltas", async () => {
     yield { choices: [{ delta: { content: "jour" } }] };
     yield { choices: [{ delta: {} }] };
   }
-  const client = { chatCompletionStream: async () => chunks() };
+  const client = {
+    chat: { completions: { create: async () => chunks() } },
+  };
   let text = "";
-  for await (const d of streamReply({ client, messages: OK_BODY.messages, model: "m", provider: "p" })) {
+  for await (const d of streamReply({ client, messages: OK_BODY.messages, modelId: "m" })) {
     text += d;
   }
   assert.equal(text, "Bonjour");
 });
 
-// ------------------------------------------- intégration SDK ↔ mock router HTTP
-let mock, redirectFetch;
+// ------------------------------------------- intégration SDK OpenAI ↔ mock router HTTP
+let mock;
 before(async () => {
   mock = await startMockRouter();
-  redirectFetch = makeRedirectFetch(mock.url);
 });
 after(() => mock.server.close());
 
-test("SDK + mock router : non-stream OK (payload complet envoyé au provider)", async () => {
-  const client = new InferenceClient(MOCK_KEY);
-  const calls = [];
-  const spyFetch = (url, init) => {
-    calls.push({ url: String(url), init });
-    return redirectFetch(url, init);
+function mockClient(apiKey, calls) {
+  // Structure identique à la fiche, avec baseURL pointé sur le mock (tests)
+  // au lieu de "https://router.huggingface.co/v1".
+  const options = {
+    baseURL: `${mock.url}/v1`,
+    apiKey,
+    maxRetries: 0, // pas de retry pendant les tests
   };
-  const out = await generateReply(
-    {
-      client,
-      apiKey: MOCK_KEY,
-      model: "dphn/Dolphin-Mistral-24B-Venice-Edition",
-      provider: "featherless-ai",
-      messages: [
-        { role: "system", content: "S" },
-        { role: "user", content: "Ping réseau" },
-      ],
-      temperature: 0.15,
-      maxTokens: 64,
-    },
-    { fetch: spyFetch }
-  );
+  if (calls) {
+    options.fetch = (url, init) => {
+      calls.push({ url: String(url), init });
+      return fetch(url, init);
+    };
+  }
+  return new OpenAI(options);
+}
+
+test("SDK OpenAI + mock router : non-stream OK (payload complet conforme à la fiche)", async () => {
+  const calls = [];
+  const client = mockClient(MOCK_KEY, calls);
+  const out = await generateReply({
+    client,
+    modelId: "dphn/Dolphin-Mistral-24B-Venice-Edition:featherless-ai",
+    messages: [
+      { role: "system", content: "S" },
+      { role: "user", content: "Ping réseau" },
+    ],
+    temperature: 0.15,
+    maxTokens: 64,
+  });
   assert.equal(out.reply, "MOCK-OK: Ping réseau");
-  // Le SDK fait 1) GET /api/models (résolution provider) puis 2) POST chat/completions.
-  assert.ok(calls.some((c) => c.url.includes("/api/models/")));
+
   const post = calls.find((c) => c.url.includes("/v1/chat/completions"));
   assert.ok(post, "l'appel chat/completions doit avoir lieu");
   const sent = JSON.parse(post.init.body);
@@ -220,56 +246,46 @@ test("SDK + mock router : non-stream OK (payload complet envoyé au provider)", 
       ? headers.get("authorization")
       : headers.Authorization ?? headers.authorization ?? null;
   assert.equal(auth, `Bearer ${MOCK_KEY}`);
+  assert.equal(sent.model, "dphn/Dolphin-Mistral-24B-Venice-Edition:featherless-ai");
   assert.equal(sent.temperature, 0.15);
   assert.equal(sent.max_tokens, 64);
+  assert.equal(sent.stream, false);
   assert.equal(sent.messages[0].role, "system");
 });
 
-test("SDK + mock router : stream OK, tokens dans l'ordre", async () => {
-  const client = new InferenceClient(MOCK_KEY);
+test("SDK OpenAI + mock router : stream OK, tokens dans l'ordre", async () => {
+  const client = mockClient(MOCK_KEY);
   let text = "";
-  for await (const d of streamReply(
-    {
-      client,
-      model: "dphn/Dolphin-Mistral-24B-Venice-Edition",
-      provider: "featherless-ai",
-      messages: [{ role: "user", content: "Un deux trois" }],
-      temperature: 0.15,
-      maxTokens: 32,
-    },
-    { fetch: redirectFetch }
-  )) {
+  for await (const d of streamReply({
+    client,
+    modelId: "dphn/Dolphin-Mistral-24B-Venice-Edition:featherless-ai",
+    messages: [{ role: "user", content: "Un deux trois" }],
+    temperature: 0.15,
+    maxTokens: 32,
+  })) {
     text += d;
   }
   assert.equal(text, "MOCK-OK: Un deux trois");
 });
 
-test("SDK + mock router : mauvaise clé → 401, TRIGGER_402 → 402", async () => {
+test("SDK OpenAI + mock router : mauvaise clé → 401, TRIGGER_402 → 402", async () => {
   await assert.rejects(
     () =>
-      generateReply(
-        {
-          client: new InferenceClient("mauvaise-cle"),
-          model: "m",
-          provider: "featherless-ai",
-          messages: [{ role: "user", content: "salut" }],
-        },
-        { fetch: redirectFetch }
-      ),
+      generateReply({
+        client: mockClient("mauvaise-cle"),
+        modelId: "m:featherless-ai",
+        messages: [{ role: "user", content: "salut" }],
+      }),
     (e) => e instanceof DolphinError && e.status === 401
   );
 
   await assert.rejects(
     () =>
-      generateReply(
-        {
-          client: new InferenceClient(MOCK_KEY),
-          model: "m",
-          provider: "featherless-ai",
-          messages: [{ role: "user", content: "TRIGGER_402" }],
-        },
-        { fetch: redirectFetch }
-      ),
+      generateReply({
+        client: mockClient(MOCK_KEY),
+        modelId: "m:featherless-ai",
+        messages: [{ role: "user", content: "TRIGGER_402" }],
+      }),
     (e) => e instanceof DolphinError && e.status === 402
   );
 });

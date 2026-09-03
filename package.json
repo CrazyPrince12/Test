@@ -26,6 +26,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@huggingface/inference": "^4.13.28"
+    "openai": "^7.9.0"
   }
 }

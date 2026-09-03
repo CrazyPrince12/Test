@@ -3,26 +3,29 @@
 // crédits/provider compatibles).
 //
 // Usage : node tests/real-check.mjs
-// Résultat : JSON structuré imprimé sur stdout (utilisé dans RAPPORT_TEST.md).
+// Suit exactement la structure OpenAI de la fiche du modèle :
+//   new OpenAI({ baseURL: "https://router.huggingface.co/v1", apiKey: process.env.HF_TOKEN })
+//   client.chat.completions.create({ model: "dphn/Dolphin-Mistral-24B-Venice-Edition:featherless-ai", ... })
 
+import { OpenAI } from "openai";
 import { loadDotEnv } from "../lib/env.js";
 import { getConfig } from "../lib/config.js";
-import { generateReply, streamReply, mapProviderError } from "../lib/dolphin.js";
+import { mapProviderError } from "../lib/dolphin.js";
 
 loadDotEnv();
 const cfg = getConfig();
 
 const result = {
   when: new Date().toISOString(),
-  model: cfg.model,
-  provider: cfg.provider,
+  baseURL: cfg.baseURL,
+  model: cfg.modelId,
   keyConfigured: Boolean(cfg.apiKey),
   keyPrefix: cfg.apiKey ? cfg.apiKey.slice(0, 6) + "…" : null,
   steps: {},
 };
 
 if (!cfg.apiKey) {
-  result.steps.config = { ok: false, error: "HF_API_KEY absente" };
+  result.steps.config = { ok: false, error: "HF_TOKEN absente" };
   console.log(JSON.stringify(result, null, 2));
   process.exit(1);
 }
@@ -32,7 +35,7 @@ const messages = [
   { role: "user", content: "Réponds en une phrase : qui es-tu ?" },
 ];
 
-// Étape 1 : whoami (le compte existe-t-il ? la clé est-elle acceptée ?)
+// Étape 1 : whoami (la clé est-elle acceptée par le Hub ?)
 try {
   const r = await fetch("https://huggingface.co/api/whoami-v2", {
     headers: { Authorization: `Bearer ${cfg.apiKey}` },
@@ -49,43 +52,51 @@ try {
   result.steps.whoami = { ok: false, networkError: String(e?.cause?.code ?? e?.message ?? e) };
 }
 
-// Étape 2 : génération non-streamée via le SDK officiel.
+// Client OpenAI pointé sur le router HF — structure exacte de la fiche.
+const client = new OpenAI({
+  baseURL: cfg.baseURL, // "https://router.huggingface.co/v1"
+  apiKey: cfg.apiKey, // process.env.HF_TOKEN
+  timeout: 45000,
+  maxRetries: 0,
+});
+
+// Étape 2 : chatCompletion non-streamée (comme l'extrait de la fiche).
 try {
-  const out = await generateReply({
-    apiKey: cfg.apiKey,
-    model: cfg.model,
-    provider: cfg.provider,
+  const chatCompletion = await client.chat.completions.create({
+    model: cfg.modelId, // "dphn/Dolphin-Mistral-24B-Venice-Edition:featherless-ai"
     messages,
-    temperature: 0.15,
-    maxTokens: 64,
-    signal: AbortSignal.timeout(45000),
+    temperature: 0.15, // recommandé par la fiche
+    max_tokens: 64,
   });
   result.steps.chatCompletion = {
     ok: true,
-    modelReturned: out.model,
-    reply: out.reply.slice(0, 300),
-    usage: out.usage,
+    modelReturned: chatCompletion.model,
+    // console.log(chatCompletion.choices[0].message) — comme dans la fiche :
+    message: chatCompletion.choices[0].message,
+    usage: chatCompletion.usage,
   };
 } catch (e) {
   const m = mapProviderError(e);
   result.steps.chatCompletion = { ok: false, status: m.status, message: m.message, detail: m.detail };
 }
 
-// Étape 3 : streaming via le SDK officiel.
+// Étape 3 : même appel avec stream: true.
 try {
   let text = "";
   let chunks = 0;
-  for await (const d of streamReply({
-    apiKey: cfg.apiKey,
-    model: cfg.model,
-    provider: cfg.provider,
+  const stream = await client.chat.completions.create({
+    model: cfg.modelId,
     messages,
     temperature: 0.15,
-    maxTokens: 48,
-    signal: AbortSignal.timeout(45000),
-  })) {
-    text += d;
-    chunks++;
+    max_tokens: 48,
+    stream: true,
+  });
+  for await (const chunk of stream) {
+    const delta = chunk?.choices?.[0]?.delta?.content;
+    if (typeof delta === "string") {
+      text += delta;
+      chunks++;
+    }
   }
   result.steps.chatCompletionStream = { ok: true, chunks, reply: text.slice(0, 300) };
 } catch (e) {

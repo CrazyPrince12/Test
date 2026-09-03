@@ -9,7 +9,7 @@ services:
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
-      - key: HF_API_KEY
+      - key: HF_TOKEN
         sync: false # à renseigner dans le dashboard Render (jamais dans le repo)
       - key: HF_MODEL
         value: dphn/Dolphin-Mistral-24B-Venice-Edition
