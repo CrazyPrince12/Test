@@ -1,0 +1,31 @@
+{
+  "name": "dolphin-chatbot",
+  "version": "1.0.0",
+  "description": "Chatbot web propulsé par dphn/Dolphin-Mistral-24B-Venice-Edition via Hugging Face Inference Providers",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test tests/dolphin.test.mjs",
+    "start": "node server.js",
+    "demo": "DEMO_MODE=1 node server.js",
+    "test:real": "node tests/real-check.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CrazyPrince12/Test.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/CrazyPrince12/Test/issues"
+  },
+  "homepage": "https://github.com/CrazyPrince12/Test#readme",
+  "private": "true",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "openai": "^7.9.0"
+  }
+}

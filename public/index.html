@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🐬 Dolphin Chat — Mistral 24B Venice Edition</title>
+  <meta name="description" content="Chatbot web propulsé par Dolphin Mistral 24B Venice Edition via Hugging Face Inference Providers." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐬</text></svg>" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">🐬</span>
+        <div>
+          <h1>Dolphin Chat</h1>
+          <p class="subtitle">Mistral 24B · Venice Edition · via Hugging Face</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span id="statusBadge" class="status-badge status-loading" title="État de la connexion au serveur">
+          <span class="dot"></span><span id="statusText">connexion…</span>
+        </span>
+        <button id="newChatBtn" class="btn btn-ghost" type="button" title="Effacer la conversation">
+          ↺ Nouveau chat
+        </button>
+      </div>
+    </header>
+
+    <details class="settings" id="settingsPanel">
+      <summary>⚙️ Réglages du modèle <span class="settings-hint">(system prompt, température…)</span></summary>
+      <div class="settings-body">
+        <label class="field">
+          <span class="field-label">System prompt <em>(recommandé par la fiche du modèle — il définit le comportement de Dolphin)</em></span>
+          <textarea id="systemPromptInput" rows="4" spellcheck="false"></textarea>
+        </label>
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">Température : <output id="tempValue">0.15</output> <em>(0.15 conseillé)</em></span>
+            <input id="temperatureInput" type="range" min="0" max="2" step="0.05" value="0.15" />
+          </label>
+          <label class="field">
+            <span class="field-label">Tokens max : <output id="maxTokensValue">512</output></span>
+            <input id="maxTokensInput" type="range" min="64" max="4096" step="64" value="512" />
+          </label>
+        </div>
+        <p class="settings-note">
+          Modèle : <code id="modelName">dphn/Dolphin-Mistral-24B-Venice-Edition</code> ·
+          Provider : <code id="providerName">featherless-ai</code> ·
+          <a href="https://huggingface.co/dphn/Dolphin-Mistral-24B-Venice-Edition" target="_blank" rel="noopener">fiche du modèle ↗</a>
+        </p>
+      </div>
+    </details>
+
+    <main id="chatArea" class="chat-area" aria-live="polite">
+      <div id="emptyState" class="empty-state">
+        <div class="empty-logo">🐬</div>
+        <h2>Discutez avec Dolphin</h2>
+        <p>Le modèle <strong>Mistral 24B Venice Edition</strong>, piloté par votre system prompt, via les Inference Providers de Hugging Face.</p>
+        <div class="suggestions">
+          <button class="chip" type="button">Explique-moi la différence entre un modèle aligné et un modèle steerable</button>
+          <button class="chip" type="button">Écris un haïku sur les dauphins et les serveurs</button>
+          <button class="chip" type="button">Donne-moi 5 façons informelles de dire « à plus tard » en français</button>
+        </div>
+      </div>
+    </main>
+
+    <footer class="composer">
+      <form id="chatForm" autocomplete="off">
+        <textarea
+          id="promptInput"
+          placeholder="Écrivez votre message… (Entrée = envoyer, Maj+Entrée = nouvelle ligne)"
+          rows="1"
+          required
+        ></textarea>
+        <button id="sendBtn" class="btn btn-send" type="submit" title="Envoyer">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
+      </form>
+      <p class="footnote">Votre clé API Hugging Face reste côté serveur — elle n'est jamais envoyée au navigateur.</p>
+    </footer>
+  </div>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
