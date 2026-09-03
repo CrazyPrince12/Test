@@ -94,14 +94,25 @@ export function createApp(env = process.env) {
   });
 }
 
-const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
-if (isMain) {
+/**
+ * Démarre le serveur HTTP (listen sur PORT/HOST).
+ * Exporté pour que les deux points d'entrée lancent le même serveur :
+ *  - server.js, exécuté directement (`node server.js` / `npm start`)
+ *  - index.js, exécuté par les plateformes qui cherchent `index.js`
+ *    par défaut (ex. Render : "Running 'node index.js'")
+ */
+export function startServer() {
   const port = Number(process.env.PORT) || 3000;
   const host = process.env.HOST || "0.0.0.0"; // requis pour la preview sandbox et Render
-  createApp().listen(port, host, () => {
+  return createApp().listen(port, host, () => {
     console.log(`🐬 Dolphin Chatbot écoute sur http://${host}:${port}`);
     console.log(`   Modèle : ${process.env.HF_MODEL || "dphn/Dolphin-Mistral-24B-Venice-Edition"} (provider: ${process.env.HF_PROVIDER || "featherless-ai"})`);
     console.log(`   Clé HF configurée : ${process.env.HF_API_KEY || process.env.HF_TOKEN ? "oui" : "non (DEMO_MODE conseillé pour tester)"}`);
     console.log(`   DEMO_MODE : ${/^(1|true|yes)$/i.test(process.env.DEMO_MODE || "") ? "activé" : "désactivé"}`);
   });
+}
+
+const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isMain) {
+  startServer();
 }
