@@ -1,4 +1,4 @@
-# 🐬 Rapport de test — Dolphin Chatbot
+# Rapport de test — Venice (par Crazy Prince Dev)
 
 **Date :** 3 septembre 2026 · **Projet :** chatbot web pour `dphn/Dolphin-Mistral-24B-Venice-Edition`
 **Implémentation :** SDK **OpenAI** avec la structure exacte de la fiche du modèle (`baseURL: https://router.huggingface.co/v1`, modèle `…:featherless-ai`)
@@ -52,7 +52,7 @@
 
 | Vérification | Résultat |
 |---|---|
-| Démarrage | ✅ `🐬 Dolphin Chatbot écoute sur http://0.0.0.0:3001` — clé détectée |
+| Démarrage | ✅ `Venice écoute sur http://0.0.0.0:3001` — clé détectée |
 | `GET /` | ✅ HTTP 200, `text/html` |
 | `GET /api/health` | ✅ `{"ok":true, "model":"dphn/Dolphin-Mistral-24B-Venice-Edition:featherless-ai", "keyConfigured":true, "defaults":{"temperature":0.15,"maxTokens":512}}` |
 | `POST /api/chat` | ⚠️ HTTP **503** « Impossible de joindre l'API Hugging Face (réseau)… » detail `Connection error.` — **attendu dans ce sandbox** (HF bloqué). Ce chemin exact est validé en vert aux tests 13–15 contre le mock. |

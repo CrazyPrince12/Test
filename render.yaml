@@ -2,7 +2,7 @@
 # Déploie le serveur Node (server.js) qui sert le frontend ET l'API /api/chat.
 services:
   - type: web
-    name: dolphin-chatbot
+    name: venice-chatbot
     runtime: node
     plan: free
     buildCommand: npm install
