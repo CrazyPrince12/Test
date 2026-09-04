@@ -10,7 +10,7 @@
 import { OpenAI } from "openai";
 import { loadDotEnv } from "../lib/env.js";
 import { getConfig } from "../lib/config.js";
-import { mapProviderError } from "../lib/dolphin.js";
+import { mapProviderError } from "../lib/venice.js";
 
 loadDotEnv();
 const cfg = getConfig();

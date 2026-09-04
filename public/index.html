@@ -1,89 +1,165 @@
-<!DOCTYPE html>
-<html lang="fr">
+<!doctype html>
+<html lang="fr" data-theme="deep">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🐬 Dolphin Chat — Mistral 24B Venice Edition</title>
-  <meta name="description" content="Chatbot web propulsé par Dolphin Mistral 24B Venice Edition via Hugging Face Inference Providers." />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐬</text></svg>" />
-  <link rel="stylesheet" href="/style.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Venice</title>
+  <meta name="description" content="Venice — le chatbot créé par Crazy Prince Dev." />
+  <meta name="author" content="Crazy Prince Dev" />
+  <meta name="theme-color" content="#041c2c" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Venice" />
+  <meta property="og:title" content="Venice — chatbot par Crazy Prince Dev" />
+  <meta property="og:description" content="Discute avec Venice : code, tech, recherche, idées. Créé par Crazy Prince Dev." />
+  <meta property="og:image" content="/assets/venice.svg" />
+
+  <link rel="icon" href="/assets/venice.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/assets/venice.svg" />
+  <link rel="stylesheet" href="/style.css?v=20260904" />
+
+  <script>
+    // Applique le thème avant le rendu pour éviter le flash.
+    (function () {
+      try {
+        var saved = localStorage.getItem("venice.theme");
+        document.documentElement.dataset.theme = saved === "lagoon" ? "lagoon" : "deep";
+      } catch (error) {
+        document.documentElement.dataset.theme = "deep";
+      }
+    })();
+  </script>
 </head>
 <body>
-  <div class="app">
-    <header class="header">
-      <div class="brand">
-        <span class="logo" aria-hidden="true">🐬</span>
-        <div>
-          <h1>Dolphin Chat</h1>
-          <p class="subtitle">Mistral 24B · Venice Edition · via Hugging Face</p>
-        </div>
-      </div>
-      <div class="header-actions">
-        <span id="statusBadge" class="status-badge status-loading" title="État de la connexion au serveur">
-          <span class="dot"></span><span id="statusText">connexion…</span>
-        </span>
-        <button id="newChatBtn" class="btn btn-ghost" type="button" title="Effacer la conversation">
-          ↺ Nouveau chat
-        </button>
-      </div>
-    </header>
-
-    <details class="settings" id="settingsPanel">
-      <summary>⚙️ Réglages du modèle <span class="settings-hint">(system prompt, température…)</span></summary>
-      <div class="settings-body">
-        <label class="field">
-          <span class="field-label">System prompt <em>(recommandé par la fiche du modèle — il définit le comportement de Dolphin)</em></span>
-          <textarea id="systemPromptInput" rows="4" spellcheck="false"></textarea>
-        </label>
-        <div class="field-row">
-          <label class="field">
-            <span class="field-label">Température : <output id="tempValue">0.15</output> <em>(0.15 conseillé)</em></span>
-            <input id="temperatureInput" type="range" min="0" max="2" step="0.05" value="0.15" />
-          </label>
-          <label class="field">
-            <span class="field-label">Tokens max : <output id="maxTokensValue">512</output></span>
-            <input id="maxTokensInput" type="range" min="64" max="4096" step="64" value="512" />
-          </label>
-        </div>
-        <p class="settings-note">
-          Modèle : <code id="modelName">dphn/Dolphin-Mistral-24B-Venice-Edition</code> ·
-          Provider : <code id="providerName">featherless-ai</code> ·
-          <a href="https://huggingface.co/dphn/Dolphin-Mistral-24B-Venice-Edition" target="_blank" rel="noopener">fiche du modèle ↗</a>
-        </p>
-      </div>
-    </details>
-
-    <main id="chatArea" class="chat-area" aria-live="polite">
-      <div id="emptyState" class="empty-state">
-        <div class="empty-logo">🐬</div>
-        <h2>Discutez avec Dolphin</h2>
-        <p>Le modèle <strong>Mistral 24B Venice Edition</strong>, piloté par votre system prompt, via les Inference Providers de Hugging Face.</p>
-        <div class="suggestions">
-          <button class="chip" type="button">Explique-moi la différence entre un modèle aligné et un modèle steerable</button>
-          <button class="chip" type="button">Écris un haïku sur les dauphins et les serveurs</button>
-          <button class="chip" type="button">Donne-moi 5 façons informelles de dire « à plus tard » en français</button>
-        </div>
-      </div>
-    </main>
-
-    <footer class="composer">
-      <form id="chatForm" autocomplete="off">
-        <textarea
-          id="promptInput"
-          placeholder="Écrivez votre message… (Entrée = envoyer, Maj+Entrée = nouvelle ligne)"
-          rows="1"
-          required
-        ></textarea>
-        <button id="sendBtn" class="btn btn-send" type="submit" title="Envoyer">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
-            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-          </svg>
-        </button>
-      </form>
-      <p class="footnote">Votre clé API Hugging Face reste côté serveur — elle n'est jamais envoyée au navigateur.</p>
-    </footer>
+  <!-- Décor : océan animé (GSAP quand disponible, CSS sinon). -->
+  <div class="ocean" aria-hidden="true">
+    <div class="ocean-glow"></div>
+    <svg class="ocean-waves" viewBox="0 0 1440 320" preserveAspectRatio="none">
+      <path class="wave wave-1" d="M0,192 C240,120 480,264 720,192 C960,120 1200,264 1440,192 L1440,320 L0,320 Z"></path>
+      <path class="wave wave-2" d="M0,224 C240,160 480,288 720,224 C960,160 1200,288 1440,224 L1440,320 L0,320 Z"></path>
+      <path class="wave wave-3" d="M0,256 C240,208 480,304 720,256 C960,208 1200,304 1440,256 L1440,320 L0,320 Z"></path>
+    </svg>
+    <div class="bubbles" id="bubbles"></div>
   </div>
 
-  <script src="/app.js" type="module"></script>
+  <!-- Icônes SVG réutilisées dans toute l'interface (aucun emoji). -->
+  <svg class="svg-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="skin" x1="0" y1="0" x2="0.9" y2="1">
+        <stop offset="0%" stop-color="#8ff7ea"/>
+        <stop offset="45%" stop-color="#35e0d4"/>
+        <stop offset="100%" stop-color="#2a8fe0"/>
+      </linearGradient>
+
+      <symbol id="icon-dolphin" viewBox="0 0 128 128">
+        <path fill="url(#skin)" d="M124,63 C117,60 111,59 105,59 C99,46 91,40 79,40 C69,40 60,43 54,47
+                 C53,39 49,32 43,28 C45,36 43,43 37,49 C35,51 33,52 32,54
+                 C27,47 20,42 10,38 C18,48 25,55 30,64 C25,72 18,79 10,86
+                 C20,80 27,74 34,70 C42,76 50,79 58,79 C66,79 72,78 76,76
+                 C74,85 69,92 61,98 C71,92 77,85 81,75 C89,73 94,71 99,69
+                 C105,67 111,65 116,64 C120,63 122,63 124,63 Z"/>
+        <circle cx="97" cy="57" r="3.4" fill="#04222f"/>
+      </symbol>
+
+      <symbol id="icon-user" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.42 0-8 2.24-8 5v1a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-1c0-2.76-3.58-5-8-5Z"/>
+      </symbol>
+
+      <symbol id="icon-send" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M3.4 20.4 21.85 12.6a.65.65 0 0 0 0-1.2L3.4 3.6a.65.65 0 0 0-.9.72l1.5 6.02c.06.25.27.44.53.47l8.9 1.19-8.9 1.19a.65.65 0 0 0-.53.47l-1.5 6.02a.65.65 0 0 0 .9.72Z"/>
+      </symbol>
+
+      <symbol id="icon-trash" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M9 3a1 1 0 0 0-1 1v1H4.5a1 1 0 1 0 0 2H5l.86 12.07A2 2 0 0 0 7.85 21h8.3a2 2 0 0 0 1.99-1.93L19 7h.5a1 1 0 1 0 0-2H16V4a1 1 0 0 0-1-1H9Zm1 2h4v1h-4V5Zm-.2 4a.8.8 0 0 1 .8.8v7.4a.8.8 0 0 1-1.6 0V9.8a.8.8 0 0 1 .8-.8Zm4.4 0a.8.8 0 0 1 .8.8v7.4a.8.8 0 0 1-1.6 0V9.8a.8.8 0 0 1 .8-.8Z"/>
+      </symbol>
+
+      <symbol id="icon-copy" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M9 2a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V6.83a2 2 0 0 0-.59-1.42l-2.82-2.83A2 2 0 0 0 15.17 2H9Zm-4 4a1 1 0 0 0-1 1v13a2 2 0 0 0 2 2h9a1 1 0 1 0 0-2H7a1 1 0 0 1-1-1V7a1 1 0 0 0-1-1Z"/>
+      </symbol>
+
+      <symbol id="icon-check" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M9.55 17.6 4.4 12.45a1 1 0 0 1 1.42-1.42l3.73 3.74 8.63-8.63a1 1 0 1 1 1.42 1.42L9.55 17.6Z"/>
+      </symbol>
+
+      <symbol id="icon-alert" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M12 2.5a1.6 1.6 0 0 1 1.4.82l9 15.6A1.6 1.6 0 0 1 21 21.4H3a1.6 1.6 0 0 1-1.4-2.48l9-15.6A1.6 1.6 0 0 1 12 2.5Zm0 5.9a1 1 0 0 0-1 1v4.4a1 1 0 1 0 2 0V9.4a1 1 0 0 0-1-1Zm0 8.1a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4Z"/>
+      </symbol>
+
+      <symbol id="icon-close" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M6.4 5A1 1 0 0 0 5 6.4l5.6 5.6L5 17.6A1 1 0 1 0 6.4 19l5.6-5.6 5.6 5.6a1 1 0 0 0 1.4-1.4L13.4 12 19 6.4A1 1 0 0 0 17.6 5L12 10.6 6.4 5Z"/>
+      </symbol>
+
+      <symbol id="icon-moon" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M21 13.3A9 9 0 1 1 10.7 3a7.2 7.2 0 0 0 10.3 10.3Z"/>
+      </symbol>
+
+      <symbol id="icon-sun" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-14a1 1 0 0 1 1 1v1.2a1 1 0 1 1-2 0V4a1 1 0 0 1 1-1Zm0 15.8a1 1 0 0 1 1 1V21a1 1 0 1 1-2 0v-1.2a1 1 0 0 1 1-1ZM3 12a1 1 0 0 1 1-1h1.2a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm15.8 0a1 1 0 0 1 1-1H21a1 1 0 1 1 0 2h-1.2a1 1 0 0 1-1-1ZM5.6 5.6a1 1 0 0 1 1.4 0l.9.9a1 1 0 0 1-1.4 1.4l-.9-.9a1 1 0 0 1 0-1.4Zm10.5 10.5a1 1 0 0 1 1.4 0l.9.9a1 1 0 0 1-1.4 1.4l-.9-.9a1 1 0 0 1 0-1.4Zm2.3-10.5a1 1 0 0 1 0 1.4l-.9.9a1 1 0 1 1-1.4-1.4l.9-.9a1 1 0 0 1 1.4 0ZM7.9 16.1a1 1 0 0 1 0 1.4l-.9.9a1 1 0 0 1-1.4-1.4l.9-.9a1 1 0 0 1 1.4 0Z"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <header class="app-header" role="banner">
+    <div class="brand">
+      <span class="brand-badge" aria-hidden="true">
+        <svg class="brand-dolphin" viewBox="0 0 128 128"><use href="#icon-dolphin"></use></svg>
+      </span>
+      <span class="brand-text">
+        <span class="brand-name">Venice</span>
+        <span class="brand-sub">par Crazy Prince Dev</span>
+      </span>
+    </div>
+
+    <div class="header-actions">
+      <span id="statusBadge" class="status-badge status-loading" title="État de la connexion au serveur">
+        <span class="dot" aria-hidden="true"></span><span id="statusText">connexion…</span>
+      </span>
+      <button id="themeToggle" class="icon-button" type="button" aria-label="Changer de thème" title="Changer de thème">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use id="themeIcon" href="#icon-moon"></use></svg>
+      </button>
+      <button id="clearChat" class="icon-button icon-button-label" type="button" aria-label="Effacer la conversation" title="Effacer la conversation">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-trash"></use></svg>
+        <span>Effacer</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="chat" class="chat">
+    <div id="emptyState" class="empty-state">
+      <span class="empty-logo" aria-hidden="true">
+        <svg class="empty-dolphin" viewBox="0 0 128 128"><use href="#icon-dolphin"></use></svg>
+      </span>
+      <h1 id="greeting" class="greeting"></h1>
+      <p class="empty-sub">Je suis <strong>Venice</strong>, créée par Crazy Prince Dev.</p>
+    </div>
+
+    <div id="messages" class="messages" aria-label="Conversation" role="log" aria-live="polite"></div>
+  </main>
+
+  <footer class="composer-wrap">
+    <form id="chatForm" class="composer" autocomplete="off">
+      <label for="userInput" class="sr-only">Votre message à Venice</label>
+      <textarea
+        id="userInput"
+        name="message"
+        rows="1"
+        placeholder="Écris à Venice…"
+        aria-label="Écris à Venice"
+        enterkeyhint="send"
+      ></textarea>
+      <button id="sendBtn" class="send-button" type="submit" aria-label="Envoyer le message" title="Envoyer le message">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-send"></use></svg>
+      </button>
+    </form>
+    <p class="composer-note">
+      Powered by Crazy Prince <span class="sep" aria-hidden="true">|</span> From Cameroun
+      <img class="flag" src="/assets/cameroun.svg" width="21" height="14" alt="Cameroun" />
+    </p>
+  </footer>
+
+  <div id="errorToast" class="error-toast" role="alert" hidden></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+  <script src="/script.js?v=20260904" type="module"></script>
 </body>
 </html>

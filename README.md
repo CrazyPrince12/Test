@@ -1,6 +1,8 @@
-# 🐬 Dolphin Chatbot
+# Venice
 
-Chatbot web propulsé par **[dphn/Dolphin-Mistral-24B-Venice-Edition](https://huggingface.co/dphn/Dolphin-Mistral-24B-Venice-Edition)** via les **Hugging Face Inference Providers** (provider : `featherless-ai`), implémenté avec le **SDK OpenAI** et la structure exacte de la fiche du modèle :
+**Venice** — chatbot web créé par **Crazy Prince Dev**. Interface unique : le chat, rien d'autre.
+
+Propulsé par **[dphn/Dolphin-Mistral-24B-Venice-Edition](https://huggingface.co/dphn/Dolphin-Mistral-24B-Venice-Edition)** via les **Hugging Face Inference Providers** (provider : `featherless-ai`), implémenté avec le **SDK OpenAI** et la structure exacte de la fiche du modèle :
 
 ```js
 import { OpenAI } from "openai";
@@ -16,6 +18,9 @@ const chatCompletion = await client.chat.completions.create({
 });
 ```
 
+- Interface **Venice** : chat plein écran, thème « faune marine », animations GSAP, icônes SVG (aucun emoji)
+- Réponses **mises en forme** (titres, listes, code, tableaux) et affichées en entier
+- Bouton **Effacer** pour repartir de zéro, badge d'état **connecté**, accueil selon l'heure
 - **Déployable sur Vercel *et* Render** sans modification
 - Clé API **côté serveur uniquement** — jamais exposée au navigateur
 - **Streaming** des réponses (SSE) + mode non-stream
@@ -26,10 +31,10 @@ const chatCompletion = await client.chat.completions.create({
 
 | Recommandation | Implémentation |
 |---|---|
-| Extrait OpenAI : `baseURL: "https://router.huggingface.co/v1"` + `HF_TOKEN` | `lib/dolphin.js` (`new OpenAI({ baseURL, apiKey })`) |
+| Extrait OpenAI : `baseURL: "https://router.huggingface.co/v1"` + `HF_TOKEN` | `lib/venice.js` (`new OpenAI({ baseURL, apiKey })`) |
 | Modèle avec suffixe `:featherless-ai` | construit depuis `HF_MODEL` + `HF_PROVIDER` |
-| Température basse conseillée (**0.15**) | valeur par défaut + curseur dans l'UI |
-| **Toujours définir un system prompt** (modèle « steerable ») | system prompt de la fiche pré-rempli, éditable ; injecté automatiquement si absent |
+| Réglages de génération | pilotés **uniquement par le `.env`** (`VENICE_TEMPERATURE`, `VENICE_MAX_TOKENS`) — aucun panneau de réglages dans l'interface |
+| **Toujours définir un system prompt** (modèle « steerable ») | identité de Venice dans `src/prompt.js` + `src/skills.js`, injectée automatiquement côté serveur |
 
 ## Structure
 
@@ -38,12 +43,15 @@ const chatCompletion = await client.chat.completions.create({
 ├── api/chat.js        Fonction serverless → Vercel
 ├── lib/
 │   ├── env.js         Chargeur .env zéro-dépendance
-│   ├── config.js      Modèle, provider, défauts (temp 0.15…)
+│   ├── config.js      Modèle, provider, réglages issus du .env
 │   ├── messages.js    Validation + injection du system prompt
-│   ├── dolphin.js     Client OpenAI (structure de la fiche) + mapping d'erreurs + mode démo
+│   ├── venice.js      Client OpenAI (structure de la fiche) + mapping d'erreurs + mode démo
 │   └── httpChat.js    Couche HTTP/SSE partagée (Vercel = Render = local)
-├── public/            Frontend (HTML/CSS/JS, sans build)
-├── tests/             21 tests (node:test) + mock du router HF + test réel
+├── src/
+│   ├── prompt.js      Identité et instructions système de Venice
+│   └── skills.js      Compétences injectées dans le prompt système
+├── public/            Frontend Venice (HTML/CSS/JS + assets SVG, sans build)
+├── tests/             22 tests (node:test) + mock du router HF + test réel
 ├── render.yaml        Blueprint Render
 └── vercel.json        Config Vercel
 ```
@@ -65,7 +73,7 @@ npm run demo              # DEMO_MODE=1
 Tests :
 
 ```bash
-npm test                  # 21 tests : unitaires + intégration HTTP (mock OpenAI-compatible)
+npm test                  # 22 tests : unitaires + intégration HTTP (mock OpenAI-compatible)
 npm run test:real         # appel RÉEL à l'API HF (nécessite Internet + clé chargée)
 ```
 
@@ -76,6 +84,9 @@ npm run test:real         # appel RÉEL à l'API HF (nécessite Internet + clé 
 | `HF_TOKEN` | ✅ (prod) | — | Clé HF → https://huggingface.co/settings/tokens (`HF_API_KEY` accepté aussi) |
 | `HF_MODEL` | | `dphn/Dolphin-Mistral-24B-Venice-Edition` | Modèle servi |
 | `HF_PROVIDER` | | `featherless-ai` | Provider → suffixe `:featherless-ai` |
+| `VENICE_TEMPERATURE` | | `0.7` | Température (0 → 2) |
+| `VENICE_MAX_TOKENS` | | `4096` | Tokens max par réponse (1 → 8192) |
+| `VENICE_SYSTEM_PROMPT` | | `src/prompt.js` | Remplace le prompt système |
 | `HF_TIMEOUT_MS` | | `55000` | Timeout d'une génération |
 | `DEMO_MODE` | | `0` | `1` = réponses simulées hors-ligne |
 | `PORT` | | `3000` | Port (Render/Vercel le définissent eux-mêmes) |
