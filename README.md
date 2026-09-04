@@ -41,9 +41,10 @@ const chatCompletion = await client.chat.completions.create({
 ```
 ├── server.js          Serveur Node natif (statique + /api/chat + /api/health) → Render / local
 ├── api/chat.js        Fonction serverless → Vercel
+├── config.js          Configuration centralisée (HF_TOKEN lue depuis l'environnement, jamais du repo)
 ├── lib/
-│   ├── env.js         Chargeur .env zéro-dépendance
-│   ├── config.js      Modèle, provider, réglages issus du .env
+│   ├── env.js         Chargeur .env zéro-dépendance (dev local uniquement)
+│   ├── config.js      Ré-export de ../config.js (compatibilité des imports)
 │   ├── messages.js    Validation + injection du system prompt
 │   ├── venice.js      Client OpenAI (structure de la fiche) + mapping d'erreurs + mode démo
 │   └── httpChat.js    Couche HTTP/SSE partagée (Vercel = Render = local)
@@ -60,9 +61,13 @@ const chatCompletion = await client.chat.completions.create({
 
 ```bash
 npm install
-cp .env.example .env      # puis collez votre clé HF_API_KEY dans .env
+cp .env.example .env      # puis collez votre clé HF_TOKEN dans .env (dev local UNIQUEMENT)
 npm start                 # → http://localhost:3000
 ```
+
+> Le `.env` local est **ignoré par git** : il ne doit jamais être commité.
+> En production, la clé est fournie par l'hébergeur (voir `config.js`) et lue
+> via `process.env.HF_TOKEN`.
 
 Sans clé ni réseau HF (interface seulement, réponses simulées) :
 
@@ -111,7 +116,9 @@ Option B (blueprint) : **New → Blueprint** → le fichier `render.yaml` config
 
 ## Sécurité
 
-- La clé vit dans `.env` (listé dans `.gitignore`) ou dans les variables chiffrées de l'hébergeur.
+- La clé n'est **jamais** stockée dans un fichier suivi par git : `config.js` lit
+  `HF_TOKEN` (ou `HF_API_KEY`) depuis les variables d'environnement de l'hébergeur
+  (Render/Vercel) ou, en dev local uniquement, depuis un `.env` ignoré par git.
 - Le navigateur n'appelle que `/api/chat` ; l'authentification HF est ajoutée côté serveur par le SDK.
 - Les entrées sont validées (rôles, tailles, plages) et les erreurs du provider traduites en messages clairs.
 
