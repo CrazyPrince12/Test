@@ -2,15 +2,21 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 
 import { parseDotEnv, loadDotEnv } from "../lib/env.js";
-import { getConfig, DEFAULT_SYSTEM_PROMPT } from "../lib/config.js";
+import {
+  getConfig,
+  getDefaults,
+  DEFAULT_SYSTEM_PROMPT,
+  DEFAULT_TEMPERATURE,
+  DEFAULT_MAX_TOKENS,
+} from "../lib/config.js";
 import { validateChatPayload, applySystemPrompt, ValidationError } from "../lib/messages.js";
 import {
-  DolphinError,
+  VeniceError,
   mapProviderError,
   generateReply,
   streamReply,
   demoTextFrom,
-} from "../lib/dolphin.js";
+} from "../lib/venice.js";
 import OpenAI, { APIError } from "openai";
 import { createApp } from "../server.js";
 import { startMockRouter, MOCK_KEY } from "./mock-hf-server.mjs";
@@ -35,7 +41,7 @@ test(".env : loadDotEnv ne lève pas d'erreur si le fichier est absent", () => {
 });
 
 // ---------------------------------------------------------------- config
-test("config : valeurs par défaut issues de la fiche (temp 0.15, provider featherless)", () => {
+test("config : valeurs par défaut (modèle Venice, provider featherless)", () => {
   const cfg = getConfig({});
   assert.equal(cfg.provider, "featherless-ai");
   assert.equal(cfg.model, "dphn/Dolphin-Mistral-24B-Venice-Edition");
@@ -49,11 +55,26 @@ test("config : valeurs par défaut issues de la fiche (temp 0.15, provider feath
 });
 
 // ---------------------------------------------------------------- validation
-test("validation : requête minimale OK + défauts 0.15/512", () => {
+test("validation : requête minimale OK + défauts du serveur (température normale, tokens au max)", () => {
   const v = validateChatPayload(OK_BODY);
-  assert.equal(v.temperature, 0.15);
-  assert.equal(v.maxTokens, 512);
+  assert.equal(v.temperature, DEFAULT_TEMPERATURE);
+  assert.equal(v.maxTokens, DEFAULT_MAX_TOKENS);
   assert.equal(v.stream, false);
+});
+
+test("config : HF_TEMPERATURE / HF_MAX_TOKENS pilotent les défauts depuis le .env", () => {
+  const d = getDefaults({ HF_TEMPERATURE: "0.3", HF_MAX_TOKENS: "1024" });
+  assert.equal(d.temperature, 0.3);
+  assert.equal(d.maxTokens, 1024);
+  // Valeurs hors bornes ignorées → retour aux défauts.
+  assert.equal(getDefaults({ HF_TEMPERATURE: "9" }).temperature, DEFAULT_TEMPERATURE);
+  assert.equal(getDefaults({ HF_MAX_TOKENS: "999999" }).maxTokens, DEFAULT_MAX_TOKENS);
+});
+
+test("prompt : l'identité Venice (créée par Crazy Prince Dev) est dans le system prompt", () => {
+  assert.match(DEFAULT_SYSTEM_PROMPT, /Tu t'appelles Venice/);
+  assert.match(DEFAULT_SYSTEM_PROMPT, /Crazy Prince Dev/);
+  assert.match(DEFAULT_SYSTEM_PROMPT, /COMPÉTENCES/);
 });
 
 test("validation : rejette les corps invalides", () => {
@@ -125,7 +146,7 @@ test("mapProviderError : 402 provider → statut + message crédits", () => {
     new Headers()
   );
   const mapped = mapProviderError(err);
-  assert.ok(mapped instanceof DolphinError);
+  assert.ok(mapped instanceof VeniceError);
   assert.equal(mapped.status, 402);
   assert.match(mapped.message, /[Cc]rédits/);
   assert.match(mapped.detail ?? "", /credits/);
@@ -178,7 +199,7 @@ test("dolphin : generateReply remappe les erreurs du client", async () => {
   };
   await assert.rejects(
     () => generateReply({ client, messages: OK_BODY.messages, modelId: "m" }),
-    (e) => e instanceof DolphinError && e.status === 503
+    (e) => e instanceof VeniceError && e.status === 503
   );
 });
 
@@ -276,7 +297,7 @@ test("SDK OpenAI + mock router : mauvaise clé → 401, TRIGGER_402 → 402", as
         modelId: "m:featherless-ai",
         messages: [{ role: "user", content: "salut" }],
       }),
-    (e) => e instanceof DolphinError && e.status === 401
+    (e) => e instanceof VeniceError && e.status === 401
   );
 
   await assert.rejects(
@@ -286,7 +307,7 @@ test("SDK OpenAI + mock router : mauvaise clé → 401, TRIGGER_402 → 402", as
         modelId: "m:featherless-ai",
         messages: [{ role: "user", content: "TRIGGER_402" }],
       }),
-    (e) => e instanceof DolphinError && e.status === 402
+    (e) => e instanceof VeniceError && e.status === 402
   );
 });
 
@@ -305,7 +326,10 @@ test("serveur : GET / sert le frontend, GET /style.css avec le bon MIME", async 
     const home = await fetch(`${base}/`);
     assert.equal(home.status, 200);
     assert.match(home.headers.get("content-type"), /text\/html/);
-    assert.match(await home.text(), /Dolphin Chat/);
+    const html = await home.text();
+    assert.match(html, /<title>Venice<\/title>/);
+    assert.ok(!/Dolphin/.test(html), "le frontend ne doit plus mentionner Dolphin");
+    assert.match(html, /Powered by Crazy Prince/);
 
     const css = await fetch(`${base}/style.css`);
     assert.equal(css.status, 200);
@@ -326,7 +350,7 @@ test("serveur : GET /api/health expose l'état sans la clé", async () => {
     assert.equal(h.ok, true);
     assert.equal(h.keyConfigured, true);
     assert.equal(h.provider, "featherless-ai");
-    assert.equal(h.defaults.temperature, 0.15);
+    assert.equal(h.name, "Venice");
     assert.ok(!JSON.stringify(h).includes(MOCK_KEY));
   } finally {
     srv.close();
@@ -414,7 +438,7 @@ test("serveur : protection traversée de répertoires", async () => {
     const res = await fetch(`${base}/%2e%2e/package.json`);
     assert.ok([403, 404].includes(res.status), `statut inattendu: ${res.status}`);
     const body = await res.text();
-    assert.ok(!body.includes('"dolphin-chatbot"'), "package.json ne doit pas être servi");
+    assert.ok(!body.includes('"venice-chatbot"'), "package.json ne doit pas être servi");
   } finally {
     srv.close();
   }

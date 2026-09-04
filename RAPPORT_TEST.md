@@ -1,4 +1,4 @@
-# 🐬 Rapport de test — Dolphin Chatbot
+# Rapport de test — Venice
 
 **Date :** 3 septembre 2026 · **Projet :** chatbot web pour `dphn/Dolphin-Mistral-24B-Venice-Edition`
 **Implémentation :** SDK **OpenAI** avec la structure exacte de la fiche du modèle (`baseURL: https://router.huggingface.co/v1`, modèle `…:featherless-ai`)
@@ -105,3 +105,23 @@ npm run test:real               # appel réel HF (à lancer avec Internet : Rend
 ```
 
 **Preview sandbox : lancée en `DEMO_MODE=1`** (HF bloqué ici) — interface complète manipulable ; le badge « mode démo » et le préfixe dans chaque réponse le signalent clairement.
+
+---
+
+## Addendum — 4 septembre 2026 : refonte du frontend (Venice)
+
+| Élément vérifié | Résultat |
+|---|---|
+| `npm test` après refonte | **31/31** (23 tests API/serveur + 8 tests de rendu des réponses) |
+| Nom du produit | « Venice », créé par Crazy Prince Dev, partout dans l'interface (titre, en-tête, avatar, messages) |
+| Interface | chat uniquement, ouverture directe sur la conversation ; panneau « réglages du modèle » supprimé (déplacé dans `.env`) |
+| Éléments conservés | badge **« connecté »** (via `/api/health`), **animation de typing** |
+| Bouton effacer | vide la conversation, le stockage local et revient à l'écran d'accueil |
+| Accueil | message adapté à l'heure locale + icône dauphin (SVG), également favicon et logo de l'en-tête |
+| Icônes | 100 % SVG (sprite inline + logo dauphin + drapeau du Cameroun) — aucun emoji |
+| Réponses | affichées en entier et reformatées : titres, listes, tableaux, blocs de code (copie incluse), gras/italique, liens ; rendu par `createElement`/`textContent`, jamais `innerHTML` |
+| Pied de la barre de saisie | « Powered by Crazy Prince \| From Cameroun » + drapeau SVG |
+| Animations | GSAP servi localement (`public/vendor/gsap.min.js`) : entrées, bulles marines, flottement du dauphin ; désactivées si `prefers-reduced-motion` |
+| Implémentation API | **inchangée** (`lib/venice.js` = ancien `lib/dolphin.js`, simple renommage ; `lib/httpChat.js` inchangé côté flux SSE) |
+| Parcours complet | validé hors-ligne (DOM simulé) : envoi → flux SSE → reformatage → historique local → effacement, sans erreur console |
+| Appel réel HF depuis le sandbox | toujours bloqué (réseau filtré) — `npm run test:real` à rejouer sur Render/Vercel |

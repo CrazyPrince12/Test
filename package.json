@@ -1,10 +1,10 @@
 {
-  "name": "dolphin-chatbot",
+  "name": "venice-chatbot",
   "version": "1.0.0",
-  "description": "Chatbot web propulsé par dphn/Dolphin-Mistral-24B-Venice-Edition via Hugging Face Inference Providers",
+  "description": "Venice — chatbot web créé par Crazy Prince Dev, propulsé par dphn/Dolphin-Mistral-24B-Venice-Edition via Hugging Face Inference Providers",
   "main": "index.js",
   "scripts": {
-    "test": "node --test tests/dolphin.test.mjs",
+    "test": "node --test \"tests/*.test.mjs\"",
     "start": "node server.js",
     "demo": "DEMO_MODE=1 node server.js",
     "test:real": "node tests/real-check.mjs"

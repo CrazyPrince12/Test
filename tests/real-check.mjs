@@ -10,7 +10,7 @@
 import { OpenAI } from "openai";
 import { loadDotEnv } from "../lib/env.js";
 import { getConfig } from "../lib/config.js";
-import { mapProviderError } from "../lib/dolphin.js";
+import { mapProviderError } from "../lib/venice.js";
 
 loadDotEnv();
 const cfg = getConfig();
@@ -31,7 +31,7 @@ if (!cfg.apiKey) {
 }
 
 const messages = [
-  { role: "system", content: "You are Dolphin Mistral 24B Venice Edition." },
+  { role: "system", content: "Tu es Venice, un assistant IA créé par Crazy Prince Dev." },
   { role: "user", content: "Réponds en une phrase : qui es-tu ?" },
 ];
 

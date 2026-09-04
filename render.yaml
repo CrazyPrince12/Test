@@ -2,7 +2,7 @@
 # Déploie le serveur Node (server.js) qui sert le frontend ET l'API /api/chat.
 services:
   - type: web
-    name: dolphin-chatbot
+    name: venice-chatbot
     runtime: node
     plan: free
     buildCommand: npm install
@@ -15,3 +15,7 @@ services:
         value: dphn/Dolphin-Mistral-24B-Venice-Edition
       - key: HF_PROVIDER
         value: featherless-ai
+      - key: HF_TEMPERATURE
+        value: "0.7"
+      - key: HF_MAX_TOKENS
+        value: "4096"
