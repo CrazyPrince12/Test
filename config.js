@@ -26,8 +26,8 @@ export const ROUTER_BASE_URL = "https://router.huggingface.co/v1";
 // Température « normale » et budget de tokens au maximum : réglables via
 // VENICE_TEMPERATURE / VENICE_MAX_TOKENS (ou HF_TEMPERATURE / HF_MAX_TOKENS).
 export const DEFAULT_TEMPERATURE = 0.7;
-export const DEFAULT_MAX_TOKENS = 100000;
-export const MAX_TOKENS_LIMIT = 1000000;
+export const DEFAULT_MAX_TOKENS = 4096;
+export const MAX_TOKENS_LIMIT = 8192;
 
 /** Prompt système complet : identité de Venice + compétences. */
 export const DEFAULT_SYSTEM_PROMPT = `${VENICE_PROMPT}\n\n# COMPÉTENCES\n\n${buildSkillsSection()}`;
